@@ -22,8 +22,14 @@ export async function POST(request) {
   try {
     const { reon_id, broj_lezaljki, tip, opis } = await request.json();
     
-    // Dobij cenu iz baze
-    const [reon] = await executeQuery('SELECT cena_po_lezaljci FROM reoni WHERE id = ?', [reon_id]);
+    // Dobij cenu iz baze - koristi naziv kolone kako je u bazi
+    const reoni = await executeQuery('SELECT cena_po_lezaljci FROM reoni WHERE id = ?', [reon_id]);
+    
+    if (!reoni || reoni.length === 0) {
+      return NextResponse.json({ error: 'Reon nije pronađen' }, { status: 404 });
+    }
+    
+    const reon = reoni[0];
     const iznos = tip === 'naplata' ? broj_lezaljki * reon.cena_po_lezaljci : 0;
 
     const result = await executeQuery(`

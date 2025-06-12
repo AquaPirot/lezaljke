@@ -3,48 +3,63 @@ import { NextResponse } from 'next/server';
 
 export async function GET() {
   try {
+    // Prvo proveri da li tabela dnevni_izvestaji postoji i ima podatke
     const izvestaji = await executeQuery(`
       SELECT * FROM dnevni_izvestaji
       ORDER BY datum DESC
       LIMIT 30
     `);
 
+    // Ako nema izveštaja, vrati prazan niz
+    if (!izvestaji || izvestaji.length === 0) {
+      return NextResponse.json([]);
+    }
+
     // Dobij detalje reona za svaki izveštaj
     for (let izvestaj of izvestaji) {
-      const reoniDetalji = await executeQuery(`
-        SELECT ir.*, r.naziv
-        FROM izvestaj_reoni ir
-        JOIN reoni r ON ir.reon_id = r.id
-        WHERE ir.izvestaj_id = ?
-      `, [izvestaj.id]);
-      
-      izvestaj.reoni = reoniDetalji;
+      try {
+        const reoniDetalji = await executeQuery(`
+          SELECT ir.*, r.naziv
+          FROM izvestaj_reoni ir
+          JOIN reoni r ON ir.reon_id = r.id
+          WHERE ir.izvestaj_id = ?
+        `, [izvestaj.id]);
+        
+        izvestaj.reoni = reoniDetalji || [];
+      } catch (err) {
+        console.log('Greška pri učitavanju detalja reona:', err);
+        izvestaj.reoni = [];
+      }
     }
 
     return NextResponse.json(izvestaji);
   } catch (error) {
     console.error('Error fetching izvestaji:', error);
-    return NextResponse.json({ error: 'Failed to fetch izvestaji' }, { status: 500 });
+    // Vraćaj prazan niz umesto greške kad nema podataka
+    return NextResponse.json([]);
   }
 }
 
 export async function POST() {
   try {
     // Računaj ukupan prihod za danas
-    const [prihodResult] = await executeQuery(`
+    const prihodResults = await executeQuery(`
       SELECT COALESCE(SUM(iznos), 0) as ukupan_prihod
       FROM transakcije 
       WHERE DATE(datum_vreme) = CURDATE()
     `);
 
     // Računaj ukupno naplaćeno/oslobođeno
-    const [statistike] = await executeQuery(`
+    const statistikeResults = await executeQuery(`
       SELECT 
         COALESCE(SUM(CASE WHEN tip = 'naplata' THEN broj_lezaljki ELSE 0 END), 0) as ukupno_naplaceno,
         COALESCE(SUM(CASE WHEN tip = 'oslobodjen' THEN broj_lezaljki ELSE 0 END), 0) as ukupno_oslobodjeno
       FROM transakcije 
       WHERE DATE(datum_vreme) = CURDATE()
     `);
+
+    const prihodResult = prihodResults[0] || { ukupan_prihod: 0 };
+    const statistike = statistikeResults[0] || { ukupno_naplaceno: 0, ukupno_oslobodjeno: 0 };
 
     // Kreiraj dnevni izveštaj
     const result = await executeQuery(`

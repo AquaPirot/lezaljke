@@ -19,38 +19,17 @@ import {
   AlertCircle,
   BarChart3,
   Wallet,
-  Gift
+  Gift,
+  Trash2
 } from 'lucide-react';
 
 export default function Home() {
   const [mounted, setMounted] = useState(false);
-  const [reoni, setReoni] = useState([
-    { id: 'A', naziv: 'Reon A', ukupno_lezaljki: 100, izdato: 15, cena_po_lezaljci: 250 },
-    { id: 'B', naziv: 'Reon B', ukupno_lezaljki: 40, izdato: 8, cena_po_lezaljci: 250 },
-    { id: 'C', naziv: 'Reon C', ukupno_lezaljki: 60, izdato: 22, cena_po_lezaljci: 250 }
-  ]);
-
-  const [transakcije, setTransakcije] = useState([
-    { id: 1, reon_naziv: 'Reon A', broj_lezaljki: 5, tip: 'naplata', iznos: 1250, datum_vreme: new Date('2024-06-12T10:30:00').toISOString() },
-    { id: 2, reon_naziv: 'Reon B', broj_lezaljki: 3, tip: 'oslobodjen', iznos: 0, opis: 'VIP gost - odobreno od menadzera', datum_vreme: new Date('2024-06-12T11:00:00').toISOString() },
-    { id: 3, reon_naziv: 'Reon A', broj_lezaljki: 10, tip: 'naplata', iznos: 2500, datum_vreme: new Date('2024-06-12T11:30:00').toISOString() }
-  ]);
-
-  const [izvestaji, setIzvestaji] = useState([
-    {
-      id: 1,
-      datum: '2024-06-10',
-      ukupan_prihod: 15750,
-      ukupno_naplaceno: 63,
-      ukupno_oslobodjeno: 7,
-      reoni: [
-        { reon_id: 'A', naziv: 'Reon A', naplaceno: 25, oslobodjeno: 2, prihod: 6250 },
-        { reon_id: 'B', naziv: 'Reon B', naplaceno: 18, oslobodjeno: 3, prihod: 4500 },
-        { reon_id: 'C', naziv: 'Reon C', naplaceno: 20, oslobodjeno: 2, prihod: 5000 }
-      ]
-    }
-  ]);
-
+  const [loading, setLoading] = useState(true);
+  const [reoni, setReoni] = useState([]);
+  const [transakcije, setTransakcije] = useState([]);
+  const [izvestaji, setIzvestaji] = useState([]);
+  
   const [showModal, setShowModal] = useState(false);
   const [selectedReon, setSelectedReon] = useState(null);
   const [brojLezaljki, setBrojLezaljki] = useState('');
@@ -58,19 +37,76 @@ export default function Home() {
   const [opis, setOpis] = useState('');
   const [aktivanTab, setAktivanTab] = useState('placeno');
 
+  // Učitaj podatke iz API-ja
   useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Učitaj reone
+        const reoniResponse = await fetch('/api/reoni');
+        if (reoniResponse.ok) {
+          const reoniData = await reoniResponse.json();
+          setReoni(Array.isArray(reoniData) ? reoniData : []);
+        } else {
+          console.error('Error loading reoni');
+          setReoni([]);
+        }
+        
+        // Učitaj transakcije
+        const transakcijeResponse = await fetch('/api/transakcije');
+        if (transakcijeResponse.ok) {
+          const transakcijeData = await transakcijeResponse.json();
+          setTransakcije(Array.isArray(transakcijeData) ? transakcijeData : []);
+        } else {
+          console.error('Error loading transakcije');
+          setTransakcije([]);
+        }
+        
+        // Učitaj izveštaje
+        const izvestajiResponse = await fetch('/api/izvestaji');
+        if (izvestajiResponse.ok) {
+          const izvestajiData = await izvestajiResponse.json();
+          setIzvestaji(Array.isArray(izvestajiData) ? izvestajiData : []);
+        } else {
+          console.error('Error loading izvestaji');
+          setIzvestaji([]);
+        }
+        
+      } catch (error) {
+        console.error('Greška pri učitavanju podataka:', error);
+        // Postavi prazne nizove ako nešto pođe po zlu
+        setReoni([]);
+        setTransakcije([]);
+        setIzvestaji([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
     setMounted(true);
   }, []);
 
-  const ukupanPrihod = transakcije
-    .filter(t => t.tip === 'naplata')
-    .reduce((sum, t) => sum + t.iznos, 0);
+  const ukupanPrihod = Array.isArray(transakcije) 
+    ? transakcije.filter(t => t.tip === 'naplata').reduce((sum, t) => sum + t.iznos, 0)
+    : 0;
 
-  const ukupnoIzdato = transakcije.reduce((sum, t) => sum + t.broj_lezaljki, 0);
-  const ukupnoLezaljki = reoni.reduce((sum, r) => sum + r.ukupno_lezaljki, 0);
+  const ukupnoIzdato = Array.isArray(transakcije) 
+    ? transakcije.reduce((sum, t) => sum + t.broj_lezaljki, 0)
+    : 0;
+    
+  const ukupnoLezaljki = Array.isArray(reoni) 
+    ? reoni.reduce((sum, r) => sum + r.ukupno_lezaljki, 0)
+    : 0;
 
-  const placeneTransakcije = transakcije.filter(t => t.tip === 'naplata');
-  const oslobodjeneTransakcije = transakcije.filter(t => t.tip === 'oslobodjen');
+  const placeneTransakcije = Array.isArray(transakcije) 
+    ? transakcije.filter(t => t.tip === 'naplata')
+    : [];
+    
+  const oslobodjeneTransakcije = Array.isArray(transakcije) 
+    ? transakcije.filter(t => t.tip === 'oslobodjen')
+    : [];
 
   // Inline gradijenti
   const gradients = {
@@ -93,12 +129,12 @@ export default function Home() {
   };
 
   const formatNumber = (num) => {
-    if (!mounted) return '0'; // Prevent hydration mismatch
+    if (!mounted) return '0';
     return new Intl.NumberFormat('sr-RS').format(num);
   };
 
   const formatTime = (dateString) => {
-    if (!mounted) return '00:00'; // Prevent hydration mismatch
+    if (!mounted) return '00:00';
     return new Date(dateString).toLocaleTimeString('sr-RS', { 
       hour: '2-digit', 
       minute: '2-digit' 
@@ -106,7 +142,7 @@ export default function Home() {
   };
 
   const formatDate = (dateString) => {
-    if (!mounted) return ''; // Prevent hydration mismatch
+    if (!mounted) return '';
     return new Date(dateString).toLocaleDateString('sr-RS');
   };
 
@@ -118,7 +154,7 @@ export default function Home() {
     setOpis('');
   };
 
-  const potvrdiTransakciju = () => {
+  const potvrdiTransakciju = async () => {
     const broj = parseInt(brojLezaljki);
     if (!broj || broj <= 0) return;
 
@@ -133,62 +169,92 @@ export default function Home() {
       return;
     }
 
-    setReoni(prev => prev.map(reon => {
-      if (reon.id === selectedReon.id) {
-        return { ...reon, izdato: reon.izdato + broj };
+    try {
+      const response = await fetch('/api/transakcije', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reon_id: selectedReon.id,
+          broj_lezaljki: broj,
+          tip: tipNaplate,
+          opis: opis.trim() || null
+        }),
+      });
+
+      if (response.ok) {
+        // Refresh podatke
+        const reoniResponse = await fetch('/api/reoni');
+        const reoniData = await reoniResponse.json();
+        setReoni(reoniData);
+        
+        const transakcijeResponse = await fetch('/api/transakcije');
+        const transakcijeData = await transakcijeResponse.json();
+        setTransakcije(transakcijeData);
+        
+        setShowModal(false);
+      } else {
+        alert('Greška pri čuvanju transakcije');
       }
-      return reon;
-    }));
-
-    const novaTransakcija = {
-      id: Date.now(),
-      reon_naziv: selectedReon.naziv,
-      broj_lezaljki: broj,
-      tip: tipNaplate,
-      iznos: tipNaplate === 'naplata' ? broj * selectedReon.cena_po_lezaljci : 0,
-      opis: opis || null,
-      datum_vreme: new Date().toISOString()
-    };
-
-    setTransakcije(prev => [novaTransakcija, ...prev]);
-    setShowModal(false);
-  };
-
-  const handleZavrsiDan = () => {
-    if (confirm('Da li želite da završite dan i napravite izveštaj?')) {
-      const noviIzvestaj = {
-        id: Date.now(),
-        datum: new Date().toISOString().split('T')[0],
-        ukupan_prihod: ukupanPrihod,
-        ukupno_naplaceno: placeneTransakcije.reduce((sum, t) => sum + t.broj_lezaljki, 0),
-        ukupno_oslobodjeno: oslobodjeneTransakcije.reduce((sum, t) => sum + t.broj_lezaljki, 0),
-        reoni: reoni.map(reon => {
-          const reonTransakcije = transakcije.filter(t => t.reon_naziv === reon.naziv);
-          const naplaceno = reonTransakcije.filter(t => t.tip === 'naplata').reduce((sum, t) => sum + t.broj_lezaljki, 0);
-          const oslobodjeno = reonTransakcije.filter(t => t.tip === 'oslobodjen').reduce((sum, t) => sum + t.broj_lezaljki, 0);
-          const prihod = reonTransakcije.filter(t => t.tip === 'naplata').reduce((sum, t) => sum + t.iznos, 0);
-          
-          return {
-            reon_id: reon.id,
-            naziv: reon.naziv,
-            naplaceno,
-            oslobodjeno,
-            prihod
-          };
-        })
-      };
-
-      setIzvestaji(prev => [noviIzvestaj, ...prev]);
-      
-      // Reset za novi dan
-      setReoni(prev => prev.map(reon => ({ ...reon, izdato: 0 })));
-      setTransakcije([]);
-      
-      alert('Dnevni izveštaj je uspešno kreiran!');
+    } catch (error) {
+      console.error('Greška:', error);
+      alert('Greška pri čuvanju transakcije');
     }
   };
 
-  if (!mounted) {
+  const handleZavrsiDan = async () => {
+    if (!confirm('Da li želite da završite dan i napravite izveštaj?')) return;
+
+    try {
+      const response = await fetch('/api/izvestaji', {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        // Refresh izveštaje
+        const izvestajiResponse = await fetch('/api/izvestaji');
+        const izvestajiData = await izvestajiResponse.json();
+        setIzvestaji(izvestajiData);
+        
+        // Resetuj trenutne podatke
+        const reoniResponse = await fetch('/api/reoni');
+        const reoniData = await reoniResponse.json();
+        setReoni(reoniData);
+        setTransakcije([]);
+        
+        alert('Dnevni izveštaj je uspešno kreiran!');
+      } else {
+        alert('Greška pri kreiranju izveštaja');
+      }
+    } catch (error) {
+      console.error('Greška:', error);
+      alert('Greška pri kreiranju izveštaja');
+    }
+  };
+
+  const obrisiIzvestaj = async (izvestajId) => {
+    if (!confirm('Da li ste sigurni da želite da obrišete ovaj izveštaj?')) return;
+
+    try {
+      const response = await fetch(`/api/izvestaji/${izvestajId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        // Ukloni izveštaj iz state-a
+        setIzvestaji(prev => prev.filter(iz => iz.id !== izvestajId));
+        alert('Izveštaj je uspešno obrisan!');
+      } else {
+        alert('Greška pri brisanju izveštaja');
+      }
+    } catch (error) {
+      console.error('Greška:', error);
+      alert('Greška pri brisanju izveštaja');
+    }
+  };
+
+  if (!mounted || loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="text-center">
@@ -243,7 +309,7 @@ export default function Home() {
               <div>
                 <p className="text-white/80 text-sm font-medium">Izdato lezaljki</p>
                 <p className="text-2xl font-bold">{ukupnoIzdato}/{ukupnoLezaljki}</p>
-                <p className="text-white/70 text-xs mt-1">{Math.round((ukupnoIzdato/ukupnoLezaljki)*100)}% kapaciteta</p>
+                <p className="text-white/70 text-xs mt-1">{ukupnoLezaljki > 0 ? Math.round((ukupnoIzdato/ukupnoLezaljki)*100) : 0}% kapaciteta</p>
               </div>
               <Users className="w-8 h-8 text-white/80" />
             </div>
@@ -253,7 +319,7 @@ export default function Home() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-white/80 text-sm font-medium">Transakcije</p>
-                <p className="text-2xl font-bold">{transakcije.length}</p>
+                <p className="text-2xl font-bold">{Array.isArray(transakcije) ? transakcije.length : 0}</p>
                 <p className="text-white/70 text-xs mt-1">danas</p>
               </div>
               <TrendingUp className="w-8 h-8 text-white/80" />
@@ -261,64 +327,66 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Reoni Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
-          {reoni.map(reon => {
-            const dostupno = reon.ukupno_lezaljki - reon.izdato;
-            const procenat = (reon.izdato / reon.ukupno_lezaljki) * 100;
-            const gradient = getReonnGradient(reon.id);
-            
-            return (
-              <div key={reon.id} className="bg-white rounded-2xl shadow-xl p-6 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-xl flex items-center justify-center text-white text-2xl font-bold shadow-lg"
-                         style={{background: gradient}}>
-                      {reon.id}
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-800">{reon.naziv}</h3>
-                      <div className="text-3xl font-bold bg-gradient-to-r from-gray-700 to-gray-900 bg-clip-text text-transparent">
-                        {dostupno} <span className="text-lg text-gray-500 font-normal">od {reon.ukupno_lezaljki}</span>
+        // Reoni Grid
+        {Array.isArray(reoni) && reoni.length > 0 && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
+            {reoni.map(reon => {
+              const dostupno = reon.ukupno_lezaljki - reon.izdato;
+              const procenat = reon.ukupno_lezaljki > 0 ? (reon.izdato / reon.ukupno_lezaljki) * 100 : 0;
+              const gradient = getReonnGradient(reon.id);
+              
+              return (
+                <div key={reon.id} className="bg-white rounded-2xl shadow-xl p-6 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 border border-gray-100">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 rounded-xl flex items-center justify-center text-white text-2xl font-bold shadow-lg"
+                           style={{background: gradient}}>
+                        {reon.id}
                       </div>
-                      <div className="text-sm text-gray-600 flex items-center gap-1">
-                        <DollarSign className="w-4 h-4" />
-                        {formatNumber(reon.cena_po_lezaljci)} RSD po lezaljci
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-800">{reon.naziv}</h3>
+                        <div className="text-3xl font-bold bg-gradient-to-r from-gray-700 to-gray-900 bg-clip-text text-transparent">
+                          {dostupno} <span className="text-lg text-gray-500 font-normal">od {reon.ukupno_lezaljki}</span>
+                        </div>
+                        <div className="text-sm text-gray-600 flex items-center gap-1">
+                          <DollarSign className="w-4 h-4" />
+                          {formatNumber(reon.cena_po_lezaljci)} RSD po lezaljci
+                        </div>
                       </div>
                     </div>
+                    
+                    <button
+                      onClick={() => otvoriModal(reon)}
+                      disabled={dostupno === 0}
+                      className="px-6 py-3 rounded-xl font-semibold text-white transition-all duration-200 transform hover:scale-105 shadow-lg"
+                      style={dostupno === 0 ? 
+                        {background: '#9ca3af', cursor: 'not-allowed'} : 
+                        {background: gradient}
+                      }
+                    >
+                      {dostupno === 0 ? 'Popunjeno' : 'Izdaj lezaljke'}
+                    </button>
                   </div>
                   
-                  <button
-                    onClick={() => otvoriModal(reon)}
-                    disabled={dostupno === 0}
-                    className="px-6 py-3 rounded-xl font-semibold text-white transition-all duration-200 transform hover:scale-105 shadow-lg"
-                    style={dostupno === 0 ? 
-                      {background: '#9ca3af', cursor: 'not-allowed'} : 
-                      {background: gradient}
-                    }
-                  >
-                    {dostupno === 0 ? 'Popunjeno' : 'Izdaj lezaljke'}
-                  </button>
-                </div>
-                
-                <div className="space-y-3">
-                  <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
-                    <div className="h-4 rounded-full transition-all duration-500 shadow-sm"
-                         style={{background: gradient, width: `${procenat}%`}}>
+                  <div className="space-y-3">
+                    <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                      <div className="h-4 rounded-full transition-all duration-500 shadow-sm"
+                           style={{background: gradient, width: `${procenat}%`}}>
+                      </div>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">{Math.round(procenat)}% popunjeno</span>
+                      <span className="font-medium text-gray-700">{reon.izdato} izdato</span>
                     </div>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">{Math.round(procenat)}% popunjeno</span>
-                    <span className="font-medium text-gray-700">{reon.izdato} izdato</span>
-                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Finish Day Button */}
-        {transakcije.length > 0 && (
+        {Array.isArray(transakcije) && transakcije.length > 0 && (
           <div className="text-center mb-8">
             <button 
               onClick={handleZavrsiDan}
@@ -332,7 +400,7 @@ export default function Home() {
         )}
 
         {/* Transaction History */}
-        {transakcije.length > 0 && (
+        {Array.isArray(transakcije) && transakcije.length > 0 && (
           <div className="bg-white rounded-2xl shadow-xl p-6 mb-8 border border-gray-100">
             <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
               <TrendingUp className="w-6 h-6 text-blue-600" />
@@ -412,7 +480,7 @@ export default function Home() {
         )}
 
         {/* Daily Reports */}
-        {izvestaji.length > 0 && (
+        {Array.isArray(izvestaji) && izvestaji.length > 0 && (
           <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
             <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
               <Calendar className="w-6 h-6 text-purple-600" />
@@ -426,13 +494,22 @@ export default function Home() {
                       <Calendar className="w-5 h-5 text-blue-600" />
                       {formatDate(izvestaj.datum)}
                     </h4>
-                    <div className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-emerald-700 bg-clip-text text-transparent">
-                      {formatNumber(izvestaj.ukupan_prihod)} RSD
+                    <div className="flex items-center gap-3">
+                      <div className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-emerald-700 bg-clip-text text-transparent">
+                        {formatNumber(izvestaj.ukupan_prihod)} RSD
+                      </div>
+                      <button
+                        onClick={() => obrisiIzvestaj(izvestaj.id)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Obriši izveštaj"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
                     </div>
                   </div>
                   
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-                    {izvestaj.reoni.map(reon => (
+                    {izvestaj.reoni && izvestaj.reoni.map(reon => (
                       <div key={reon.reon_id} className="text-center p-4 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200">
                         <div className="font-semibold text-gray-800 mb-2">{reon.naziv}</div>
                         <div className="text-sm text-emerald-600 mb-1">✓ Naplaćeno: {reon.naplaceno}</div>
