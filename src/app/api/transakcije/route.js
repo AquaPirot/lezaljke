@@ -11,7 +11,18 @@ export async function GET() {
       ORDER BY t.datum_vreme DESC
     `);
 
-    return NextResponse.json(transakcije);
+    // Debug logovanje
+    console.log('API transakcije result:', transakcije);
+
+    // Osiguraj da svi podaci imaju potrebne vrednosti
+    const cleanedTransakcije = transakcije.map(t => ({
+      ...t,
+      iznos: parseFloat(t.iznos) || 0,
+      tip: t.tip || 'naplata',
+      broj_lezaljki: parseInt(t.broj_lezaljki) || 0
+    }));
+
+    return NextResponse.json(cleanedTransakcije);
   } catch (error) {
     console.error('Error fetching transakcije:', error);
     return NextResponse.json({ error: 'Failed to fetch transakcije' }, { status: 500 });
@@ -30,7 +41,8 @@ export async function POST(request) {
     }
     
     const reon = reoni[0];
-    const iznos = tip === 'naplata' ? broj_lezaljki * reon.cena_po_lezaljci : 0;
+    // Za oslobođene transakcije, iznos je uvek 0
+    const iznos = tip === 'naplata' ? (broj_lezaljki * parseFloat(reon.cena_po_lezaljci)) : 0;
 
     const result = await executeQuery(`
       INSERT INTO transakcije (reon_id, broj_lezaljki, tip, iznos, opis)
@@ -39,7 +51,8 @@ export async function POST(request) {
 
     return NextResponse.json({ 
       success: true, 
-      transakcija_id: result.insertId 
+      transakcija_id: result.insertId,
+      iznos: iznos
     });
   } catch (error) {
     console.error('Error creating transakcija:', error);

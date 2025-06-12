@@ -69,7 +69,8 @@ export default function Home() {
           const izvestajiData = await izvestajiResponse.json();
           setIzvestaji(Array.isArray(izvestajiData) ? izvestajiData : []);
         } else {
-          console.error('Error loading izvestaji');
+          const errorData = await izvestajiResponse.text();
+          console.error('Error loading izvestaji:', errorData);
           setIzvestaji([]);
         }
         

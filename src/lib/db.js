@@ -8,7 +8,12 @@ const dbConfig = {
   port: process.env.DB_PORT || 3306,
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  // SSL config za cloud baze
+  ssl: process.env.NODE_ENV === 'production' ? {
+    rejectUnauthorized: false
+  } : false
+  // Uklanjam nevalidne opcije: acquireTimeout, timeout, reconnect
 };
 
 let pool;

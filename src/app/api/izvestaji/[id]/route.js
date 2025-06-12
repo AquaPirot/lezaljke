@@ -3,7 +3,8 @@ import { NextResponse } from 'next/server';
 
 export async function DELETE(request, { params }) {
   try {
-    const { id } = params;
+    // Await params u Next.js 15+
+    const { id } = await params;
 
     // Prvo obriši podatke o reonima iz izveštaja
     await executeQuery(`

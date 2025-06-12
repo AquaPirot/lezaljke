@@ -88,7 +88,17 @@ export async function POST() {
       `, [izvestajId, reon.reon_id, reon.naplaceno, reon.oslobodjeno, reon.prihod]);
     }
 
-    return NextResponse.json({ success: true, izvestaj_id: izvestajId });
+    // KLJUČNI DEO: Obriši sve transakcije za današnji dan nakon kreiranja izveštaja
+    await executeQuery(`
+      DELETE FROM transakcije 
+      WHERE DATE(datum_vreme) = CURDATE()
+    `);
+
+    return NextResponse.json({ 
+      success: true, 
+      izvestaj_id: izvestajId,
+      message: 'Izveštaj je kreiran i dan je resetovan za novi rad'
+    });
   } catch (error) {
     console.error('Error creating izvestaj:', error);
     return NextResponse.json({ error: 'Failed to create izvestaj' }, { status: 500 });
